@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Image Converter
+Comment=Batch image conversion with a configurable byte budget
+Exec=image-converter
+Icon=image-converter
+Terminal=false
+Categories=Graphics;Utility;
+StartupNotify=true
