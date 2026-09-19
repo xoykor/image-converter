@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import tempfile
 from pathlib import Path
@@ -35,7 +36,7 @@ class TargetSizeEncoder:
                     height=height,
                 )
 
-        source_width, source_height = probe_dimensions(source)
+        source_width, _source_height = probe_dimensions(source)
         candidate_widths: list[int | None] = [None]
 
         if self.settings.allow_downscale:
@@ -128,6 +129,8 @@ class TargetSizeEncoder:
             if best_crf is None or best_size is None or best_bytes is None:
                 return None
 
-        persistent = Path(tempfile.mkstemp(suffix=".avif")[1])
+        fd, temporary_name = tempfile.mkstemp(suffix=".avif")
+        os.close(fd)
+        persistent = Path(temporary_name)
         persistent.write_bytes(best_bytes)
         return persistent, best_size, best_crf
