@@ -57,7 +57,19 @@ jobs:
           test -n "$APPIMAGE"
           test -x "$APPIMAGE"
           file "$APPIMAGE"
-          "$APPIMAGE" --appimage-version || true
+          "$APPIMAGE" --appimage-version
+
+          # The GUI must remain alive when launched. The previous packaging bug
+          # exited successfully and immediately because main() was never called.
+          set +e
+          QT_QPA_PLATFORM=offscreen timeout 5s "$APPIMAGE"
+          status=$?
+          set -e
+
+          if [ "$status" -ne 124 ]; then
+            echo "AppImage exited unexpectedly with status $status" >&2
+            exit 1
+          fi
 
       - name: Upload AppImage
         uses: actions/upload-artifact@v4
