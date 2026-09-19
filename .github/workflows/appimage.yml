@@ -62,7 +62,7 @@ jobs:
           # The GUI must remain alive when launched. The previous packaging bug
           # exited successfully and immediately because main() was never called.
           set +e
-          QT_QPA_PLATFORM=offscreen timeout 5s "$APPIMAGE"
+          QT_QPA_PLATFORM=offscreen APPIMAGE_EXTRACT_AND_RUN=1 timeout 5s "$APPIMAGE"
           status=$?
           set -e
 
