@@ -33,8 +33,15 @@ cp -L "$(command -v ffprobe)" "$APPDIR/usr/lib/ffmpeg/ffprobe.real"
 
 copy_ffmpeg_dependencies() {
     local executable="$1"
+    local ldd_output
 
-    ldd "$executable"         | awk '/=> \/[^ ]+/ {print $3} /^\// {print $1}'         | sort -u         | while IFS= read -r library; do
+    # Static FFmpeg builds intentionally have no shared-library dependency
+    # list. In that case ldd exits non-zero and there is simply nothing to copy.
+    if ! ldd_output="$(ldd "$executable" 2>/dev/null)"; then
+        return 0
+    fi
+
+    printf '%s\n' "$ldd_output"         | awk '/=> \/[^ ]+/ {print $3} /^\// {print $1}'         | sort -u         | while IFS= read -r library; do
             [[ -n "$library" ]] || continue
 
             case "$(basename "$library")" in
