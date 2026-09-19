@@ -88,8 +88,6 @@ def encode_avif(
     command += [
         "-c:v",
         "libaom-av1",
-        "-still-picture",
-        "1",
         "-cpu-used",
         str(cpu_used),
         "-row-mt",
