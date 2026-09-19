@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import QThread, Qt
+from PySide6.QtCore import QThread
 from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
@@ -45,6 +45,7 @@ class MainWindow(QMainWindow):
         self._thread: QThread | None = None
         self._worker: BatchWorker | None = None
         self._paused = False
+        self._close_when_finished = False
 
         self._total = 0
         self._processed = 0
@@ -207,15 +208,22 @@ class MainWindow(QMainWindow):
             self.output_edit.setText(path)
 
     def _start(self) -> None:
-        input_dir = Path(self.input_edit.text().strip()).expanduser()
-        output_dir = Path(self.output_edit.text().strip()).expanduser()
+        input_text = self.input_edit.text().strip()
+        output_text = self.output_edit.text().strip()
 
-        if not input_dir.is_dir():
+        if not input_text:
             QMessageBox.warning(self, "Entrada inválida", "Escolha uma pasta de entrada.")
             return
 
-        if not str(output_dir):
+        if not output_text:
             QMessageBox.warning(self, "Saída inválida", "Escolha uma pasta de saída.")
+            return
+
+        input_dir = Path(input_text).expanduser()
+        output_dir = Path(output_text).expanduser()
+
+        if not input_dir.is_dir():
+            QMessageBox.warning(self, "Entrada inválida", "Escolha uma pasta de entrada.")
             return
 
         try:
@@ -253,6 +261,7 @@ class MainWindow(QMainWindow):
         worker.finished.connect(self._on_finished)
         worker.finished.connect(thread.quit)
         thread.finished.connect(worker.deleteLater)
+        thread.finished.connect(self._on_thread_finished)
         thread.finished.connect(thread.deleteLater)
 
         self._thread = thread
@@ -313,14 +322,20 @@ class MainWindow(QMainWindow):
 
     def _on_finished(self, success: bool, message: str) -> None:
         self.status_label.setText(message)
+
+        if not success and "cancelada" not in message.lower():
+            QMessageBox.warning(self, "Conversão", message)
+
+    def _on_thread_finished(self) -> None:
         self._set_running(False)
         self._worker = None
         self._thread = None
         self._paused = False
         self.pause_button.setText("Pausar")
 
-        if not success and "cancelada" not in message.lower():
-            QMessageBox.warning(self, "Conversão", message)
+        if self._close_when_finished:
+            self._close_when_finished = False
+            self.close()
 
     def _refresh_stats(self) -> None:
         total_text = f"{self._processed:,} / {self._total:,}".replace(",", ".")
@@ -415,7 +430,9 @@ class MainWindow(QMainWindow):
         )
 
         if answer == QMessageBox.StandardButton.Yes:
+            self._close_when_finished = True
             self._worker.cancel()
-            event.accept()
+            self.status_label.setText("Cancelando antes de fechar…")
+            event.ignore()
         else:
             event.ignore()
