@@ -59,6 +59,32 @@ Run:
 image-converter
 ```
 
+## AppImage
+
+Every AppImage workflow run produces a portable x86_64 artifact containing the
+application, PySide6 runtime and FFmpeg/ffprobe runtime required by the encoder.
+
+To build it locally on CachyOS:
+
+```fish
+sudo pacman -S ffmpeg python
+python -m pip install -e . pyinstaller
+bash scripts/build-appimage.sh
+```
+
+The result is written to:
+
+```text
+dist-appimage/ImageConverter-x86_64.AppImage
+```
+
+Run it with:
+
+```fish
+chmod +x dist-appimage/ImageConverter-x86_64.AppImage
+./dist-appimage/ImageConverter-x86_64.AppImage
+```
+
 You can verify that FFmpeg has the required AV1 encoder with:
 
 ```fish
