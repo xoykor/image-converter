@@ -71,6 +71,30 @@ jobs:
             exit 1
           fi
 
+      - name: Smoke-check bundled AVIF encoder
+        run: |
+          APPIMAGE="$(find dist-appimage -maxdepth 1 -name '*.AppImage' -print -quit)"
+          rm -rf squashfs-root avif-smoke
+          "$APPIMAGE" --appimage-extract >/dev/null
+          mkdir -p avif-smoke
+
+          python - <<'PY'
+          from pathlib import Path
+          w, h = 64, 64
+          data = bytearray()
+          for y in range(h):
+              for x in range(w):
+                  data.extend((x * 4 % 256, y * 4 % 256, (x + y) * 2 % 256))
+          Path("avif-smoke/input.ppm").write_bytes(
+              f"P6\n{w} {h}\n255\n".encode() + data
+          )
+          PY
+
+          squashfs-root/usr/bin/ffmpeg             -y             -loglevel error             -i avif-smoke/input.ppm             -map_metadata -1             -frames:v 1             -c:v libaom-av1             -cpu-used 6             -row-mt 1             -pix_fmt yuv420p             -crf 40             -b:v 0             avif-smoke/output.avif
+
+          test -s avif-smoke/output.avif
+          squashfs-root/usr/bin/ffprobe             -v error             -select_streams v:0             -show_entries stream=codec_name,width,height             -of default=nw=1             avif-smoke/output.avif
+
       - name: Upload AppImage
         uses: actions/upload-artifact@v4
         with:
