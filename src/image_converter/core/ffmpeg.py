@@ -13,9 +13,33 @@ class FFmpegError(RuntimeError):
 def ensure_ffmpeg_available() -> None:
     missing = [name for name in ("ffmpeg", "ffprobe") if shutil.which(name) is None]
     if missing:
-        raise FFmpegError(
-            "Dependência ausente: " + ", ".join(missing)
-        )
+        raise FFmpegError("Dependência ausente: " + ", ".join(missing))
+
+    encoders = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-encoders"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if encoders.returncode != 0 or "libaom-av1" not in encoders.stdout:
+        raise FFmpegError("O FFmpeg disponível não possui o encoder libaom-av1.")
+
+    muxers = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-muxers"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if muxers.returncode != 0 or " avif " not in f" {muxers.stdout} ":
+        # Different FFmpeg versions align the table differently, so fall back
+        # to checking the individual whitespace-delimited fields.
+        muxer_names = {
+            field
+            for line in muxers.stdout.splitlines()
+            for field in line.split()
+        }
+        if "avif" not in muxer_names:
+            raise FFmpegError("O FFmpeg disponível não possui o muxer AVIF.")
 
 
 def probe_dimensions(path: Path) -> tuple[int, int]:
@@ -98,6 +122,8 @@ def encode_avif(
         str(crf),
         "-b:v",
         "0",
+        "-f",
+        "avif",
         str(destination),
     ]
 
