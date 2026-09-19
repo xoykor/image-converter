@@ -45,6 +45,18 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install . pyinstaller
 
+      - name: Install modern static FFmpeg
+        run: |
+          curl -L --fail --retry 3             https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-lgpl.tar.xz             -o /tmp/ffmpeg-static.tar.xz
+
+          mkdir -p "$GITHUB_WORKSPACE/build/ffmpeg-static"
+          tar -xJf /tmp/ffmpeg-static.tar.xz             --strip-components=1             -C "$GITHUB_WORKSPACE/build/ffmpeg-static"
+
+          echo "$GITHUB_WORKSPACE/build/ffmpeg-static/bin" >> "$GITHUB_PATH"
+
+          "$GITHUB_WORKSPACE/build/ffmpeg-static/bin/ffmpeg" -hide_banner -encoders | grep libaom-av1
+          "$GITHUB_WORKSPACE/build/ffmpeg-static/bin/ffmpeg" -hide_banner -muxers | grep -w avif
+
       - name: Build AppImage
         env:
           ARCH: x86_64
