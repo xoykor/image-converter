@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Desktop batch image converter with target-size AVIF encoding."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = { text = "GPL-3.0-only" }
 authors = [{ name = "xoykor" }]
 dependencies = [
   "PySide6>=6.7,<7",
