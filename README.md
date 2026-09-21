@@ -1,8 +1,31 @@
 # image-converter
 
-Desktop batch image converter focused on fitting large image collections into a predictable storage budget.
+Desktop batch image converter focused on fitting **large image collections into a predictable storage budget**. Instead of applying one fixed quality setting to every file, the encoder searches per image for a configuration that stays within a requested size target whenever possible.
 
 The first milestone targets the use case that motivated the project: hundreds of thousands of card images that need to be converted to AVIF while keeping each file near a configurable size budget, such as 10 KiB.
+
+## Quick start
+
+Requirements:
+
+- Python 3.11+;
+- PySide6;
+- FFmpeg with an AVIF-capable encoder available.
+
+Development install:
+
+```sh
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
+image-converter
+```
+
+On fish, activate the environment with:
+
+```fish
+source .venv/bin/activate.fish
+```
 
 ## Current features
 
@@ -16,6 +39,12 @@ The first milestone targets the use case that motivated the project: hundreds of
 - Preserves the input directory structure.
 - Incremental CSV report so long jobs can be inspected after interruption.
 - Removes source metadata from generated files.
+
+## How target-size encoding works
+
+For each input image, the converter attempts to preserve the original dimensions while searching the encoder quality range for the best candidate that fits the configured byte budget. If the target cannot be reached at the current dimensions and progressive downscaling is enabled, the process retries at smaller dimensions.
+
+This makes the target a **budget**, not a promise of identical visual quality across unrelated source images.
 
 ## Architecture
 
@@ -100,3 +129,15 @@ This is deliberately different from applying one quality setting to every image:
 ## Status
 
 This is an initial working architecture/MVP. The next milestones are visual before/after previews, global-average budget mode, resumable manifests and packaged Linux builds.
+
+
+## Limitations
+
+- Extremely small targets can require substantial downscaling or visible quality loss.
+- Encoding speed depends heavily on FFmpeg/libaom settings, image dimensions and worker count.
+- A successful conversion within a byte target does not imply equivalent perceptual quality between different images.
+- Keep source files until a batch has been inspected and the CSV report reviewed.
+
+## License
+
+GNU General Public License v3.0. See [LICENSE](LICENSE).
