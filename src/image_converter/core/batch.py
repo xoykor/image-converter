@@ -102,7 +102,25 @@ class BatchConverter:
                 pending = set(still_pending)
 
                 for future in done:
-                    yield future.result()
+                    try:
+                        result = future.result()
+                    except Exception as exc:
+                        # Last-resort containment: one pathological file must
+                        # never terminate a batch containing hundreds of
+                        # thousands of independent images.
+                        source = getattr(exc, "source", None)
+                        if source is None:
+                            source = Path("<unknown>")
+
+                        result = ConversionResult(
+                            source=source,
+                            output=Path(""),
+                            status="failed",
+                            original_bytes=0,
+                            error=f"Erro inesperado no worker: {exc}",
+                        )
+
+                    yield result
 
                     if not self.cancel_event.is_set():
                         submit_next()
