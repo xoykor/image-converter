@@ -22,31 +22,34 @@ class TargetSizeEncoder:
         self.settings = settings
 
     def convert(self, source: Path, output: Path) -> ConversionResult:
-        original_bytes = source.stat().st_size
-
-        if self.settings.skip_existing and output.exists():
-            existing_size = output.stat().st_size
-            if 0 < existing_size <= self.settings.target_bytes:
-                width, height = probe_dimensions(output)
-                return ConversionResult(
-                    source=source,
-                    output=output,
-                    status="skipped",
-                    original_bytes=original_bytes,
-                    final_bytes=existing_size,
-                    width=width,
-                    height=height,
-                )
-
-        # Never leave an old, oversized result in place. Otherwise a failed
-        # retry can look like it produced that stale file.
-        if output.exists():
-            output.unlink()
-
-        source_width, _source_height = probe_dimensions(source)
-        candidate_widths = self._candidate_widths(source_width)
-
+        # Invalid/corrupt files are expected in very large collections. A
+        # single bad .jpg must become one failed row in the report, not abort
+        # the entire batch.
         try:
+            original_bytes = source.stat().st_size
+
+            if self.settings.skip_existing and output.exists():
+                existing_size = output.stat().st_size
+                if 0 < existing_size <= self.settings.target_bytes:
+                    width, height = probe_dimensions(output)
+                    return ConversionResult(
+                        source=source,
+                        output=output,
+                        status="skipped",
+                        original_bytes=original_bytes,
+                        final_bytes=existing_size,
+                        width=width,
+                        height=height,
+                    )
+
+            # Never leave an old, oversized result in place. Otherwise a failed
+            # retry can look like it produced that stale file.
+            if output.exists():
+                output.unlink()
+
+            source_width, _source_height = probe_dimensions(source)
+            candidate_widths = self._candidate_widths(source_width)
+
             for width in candidate_widths:
                 attempt = self._best_for_width(source, width)
                 if attempt is None:
@@ -87,6 +90,11 @@ class TargetSizeEncoder:
             )
         except Exception as exc:
             output.unlink(missing_ok=True)
+            try:
+                original_bytes = source.stat().st_size
+            except OSError:
+                original_bytes = 0
+
             return ConversionResult(
                 source=source,
                 output=output,
