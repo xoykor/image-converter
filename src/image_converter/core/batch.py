@@ -77,7 +77,7 @@ class BatchConverter:
             thread_name_prefix="image-converter",
         ) as executor:
             source_iter = iter(images)
-            pending: set[Future[ConversionResult]] = set()
+            pending: dict[Future[ConversionResult], Path] = {}
 
             def submit_next() -> bool:
                 if self.cancel_event.is_set():
@@ -88,35 +88,38 @@ class BatchConverter:
                 except StopIteration:
                     return False
 
-                pending.add(executor.submit(self._convert_one, source))
+                future = executor.submit(self._convert_one, source)
+                pending[future] = source
                 return True
 
             while len(pending) < max_pending and submit_next():
                 pass
 
             while pending:
-                done, still_pending = wait(
+                done, _still_pending = wait(
                     pending,
                     return_when=FIRST_COMPLETED,
                 )
-                pending = set(still_pending)
 
                 for future in done:
+                    source = pending.pop(future)
+
                     try:
                         result = future.result()
                     except Exception as exc:
                         # Last-resort containment: one pathological file must
                         # never terminate a batch containing hundreds of
                         # thousands of independent images.
-                        source = getattr(exc, "source", None)
-                        if source is None:
-                            source = Path("<unknown>")
+                        try:
+                            original_bytes = source.stat().st_size
+                        except OSError:
+                            original_bytes = 0
 
                         result = ConversionResult(
                             source=source,
-                            output=Path(""),
+                            output=output_path_for(source, self.settings),
                             status="failed",
-                            original_bytes=0,
+                            original_bytes=original_bytes,
                             error=f"Erro inesperado no worker: {exc}",
                         )
 
